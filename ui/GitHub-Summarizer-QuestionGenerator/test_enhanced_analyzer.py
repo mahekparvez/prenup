@@ -26,7 +26,7 @@ def test_file_prioritization():
     """Test that file prioritization logic works correctly."""
     print("🧪 Testing file prioritization...")
     
-    analyzer = RepositoryAnalyzer()
+    analyzer = RepositoryAnalyzer(show_progress=False)
     
     test_cases = [
         # (file_path, expected_important, expected_priority_range)
@@ -57,6 +57,34 @@ def test_file_prioritization():
     
     return all_passed
 
+def test_subfolder_prioritization():
+    """Test file prioritization with subfolder depth adjustment."""
+    print("🧪 Testing subfolder file prioritization...")
+    
+    analyzer = RepositoryAnalyzer(show_progress=False)
+    
+    # Test that subfolder depth affects priority
+    test_cases = [
+        # (file_path, subfolder_depth, expected_priority_adjustment)
+        (Path("README.md"), 0, 1),    # Root README gets priority 1
+        (Path("README.md"), 1, 2),    # Subfolder README gets priority 2
+        (Path("package.json"), 0, 2), # Root package.json gets priority 2
+        (Path("package.json"), 1, 3), # Subfolder package.json gets priority 3
+        (Path("setup.py"), 2, 4),     # Deep subfolder project file gets higher priority
+    ]
+    
+    all_passed = True
+    for file_path, subfolder_depth, expected_priority in test_cases:
+        is_important, priority = analyzer._is_important_file(file_path, subfolder_depth)
+        
+        if is_important and priority == expected_priority:
+            print(f"  ✓ {file_path} (depth {subfolder_depth}): priority={priority}")
+        else:
+            print(f"  ✗ {file_path} (depth {subfolder_depth}): expected priority={expected_priority}, got priority={priority}")
+            all_passed = False
+    
+    return all_passed
+
 def test_database_operations():
     """Test database storage and retrieval."""
     print("🧪 Testing database operations...")
@@ -66,7 +94,7 @@ def test_database_operations():
         tmp_db_path = tmp_db.name
     
     try:
-        analyzer = RepositoryAnalyzer(db_path=tmp_db_path)
+        analyzer = RepositoryAnalyzer(db_path=tmp_db_path, show_progress=False)
         
         # Create test metadata and result
         metadata = RepositoryMetadata(
@@ -110,6 +138,103 @@ def test_database_operations():
             print("  ✓ Analysis history retrieved successfully")
         else:
             print("  ✗ Analysis history retrieval failed")
+            return False
+            
+        return True
+        
+    finally:
+        # Cleanup
+        Path(tmp_db_path).unlink(missing_ok=True)
+
+def test_subfolder_hash_generation():
+    """Test hash generation with and without subfolders."""
+    print("🧪 Testing subfolder hash generation...")
+    
+    analyzer = RepositoryAnalyzer(show_progress=False)
+    
+    # Test basic hash
+    hash1 = analyzer._generate_repo_hash("https://github.com/test/repo", "main")
+    hash2 = analyzer._generate_repo_hash("https://github.com/test/repo", "main", None)
+    
+    if hash1 == hash2:
+        print("  ✓ Consistent hash generation for repo without subfolder")
+    else:
+        print("  ✗ Inconsistent hash generation for repo without subfolder")
+        return False
+    
+    # Test subfolder hash
+    hash3 = analyzer._generate_repo_hash("https://github.com/test/repo", "main", "src")
+    hash4 = analyzer._generate_repo_hash("https://github.com/test/repo", "main", "docs")
+    
+    if hash1 != hash3 and hash3 != hash4:
+        print("  ✓ Different hashes for different subfolders")
+    else:
+        print("  ✗ Same hashes for different subfolders or scenarios")
+        return False
+    
+    # Test consistency
+    hash5 = analyzer._generate_repo_hash("https://github.com/test/repo", "main", "src")
+    if hash3 == hash5:
+        print("  ✓ Consistent hash for same subfolder")
+        return True
+    else:
+        print("  ✗ Inconsistent hash for same subfolder")
+        return False
+
+def test_subfolder_database_operations():
+    """Test database operations with subfolder metadata."""
+    print("🧪 Testing subfolder database operations...")
+    
+    # Use temporary database
+    with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as tmp_db:
+        tmp_db_path = tmp_db.name
+    
+    try:
+        analyzer = RepositoryAnalyzer(db_path=tmp_db_path, show_progress=False)
+        
+        # Create test metadata with subfolder
+        metadata = RepositoryMetadata(
+            repo_url="https://github.com/test/repo",
+            ref="main",
+            analysis_timestamp="2023-01-01T00:00:00Z",
+            total_files=5,
+            analyzed_files=3,
+            total_lines=500,
+            file_types={"py": 2, "md": 1},
+            repo_hash="subfolder123",
+            subfolder="src/frontend"
+        )
+        
+        analysis_result = AnalysisResult(
+            repository_metadata=metadata,
+            summary="Frontend subfolder analysis",
+            objectives=["Frontend functionality"],
+            architecture={"pattern": "Component-based"},
+            key_components=[{"name": "App", "type": "component", "purpose": "main app"}],
+            tech_stack=["JavaScript", "React"],
+            complexity_score=3,
+            recommendations=["Add more tests"],
+            raw_response="Raw frontend response"
+        )
+        
+        # Test storage
+        analyzer._store_analysis_result(analysis_result)
+        print("  ✓ Subfolder analysis stored successfully")
+        
+        # Test retrieval
+        retrieved = analyzer._get_stored_analysis("subfolder123")
+        if retrieved and retrieved.repository_metadata.subfolder == "src/frontend":
+            print("  ✓ Subfolder analysis retrieved with correct subfolder info")
+        else:
+            print("  ✗ Subfolder analysis retrieval failed")
+            return False
+        
+        # Test history includes subfolder information
+        history = analyzer.get_analysis_history()
+        if len(history) > 0 and history[0]['subfolder'] == "src/frontend":
+            print("  ✓ Analysis history includes subfolder information")
+        else:
+            print("  ✗ Analysis history missing subfolder information")
             return False
             
         return True
@@ -179,7 +304,7 @@ def test_repository_loading():
     test_repo = create_test_repository()
     
     try:
-        analyzer = RepositoryAnalyzer(max_files=10, max_chars_per_file=1000)
+        analyzer = RepositoryAnalyzer(max_files=10, max_chars_per_file=1000, show_progress=False)
         
         # Mock the clone operation to use our test repo
         with patch.object(analyzer, '_clone_repo_to_tmp', return_value=test_repo):
@@ -218,12 +343,144 @@ def test_repository_loading():
         
     finally:
         shutil.rmtree(test_repo, ignore_errors=True)
+def test_subfolder_repository_loading():
+    """Test repository content loading with subfolder analysis."""
+    print("🧪 Testing subfolder repository loading...")
+    
+    # Create enhanced test repo structure
+    test_repo = Path(tempfile.mkdtemp(prefix="test-repo-"))
+    
+    # Create test files including subfolder structure
+    test_files = {
+        "README.md": "# Test Repository\nThis is a test repository for analysis.",
+        "package.json": '{"name": "test-repo", "version": "1.0.0"}',
+        "src/main.py": """
+def main():
+    print("Hello, World!")
+
+class TestClass:
+    def __init__(self):
+        self.value = 42
+    
+    def get_value(self):
+        return self.value
+
+if __name__ == "__main__":
+    main()
+""",
+        "src/frontend/app.js": """
+// Frontend main application
+class App {
+    constructor() {
+        this.initialized = false;
+    }
+    
+    init() {
+        this.initialized = true;
+        console.log('App initialized');
+    }
+}
+
+export default App;
+""",
+        "src/frontend/components/header.js": """
+// Header component
+export function Header(props) {
+    return `<header>${props.title}</header>`;
+}
+""",
+        "src/frontend/README.md": "# Frontend Module\nThis contains the frontend components and logic.",
+        "src/backend/server.py": """
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route('/')
+def hello():
+    return 'Hello from backend!'
+
+if __name__ == '__main__':
+    app.run()
+""",
+        "src/backend/models.py": """
+class User:
+    def __init__(self, name, email):
+        self.name = name
+        self.email = email
+""",
+    }
+    
+    for file_path, content in test_files.items():
+        full_path = test_repo / file_path
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        full_path.write_text(content)
+    
+    try:
+        analyzer = RepositoryAnalyzer(max_files=10, max_chars_per_file=1000, show_progress=False)
+        
+        # Test loading frontend subfolder
+        with patch.object(analyzer, '_clone_repo_to_tmp', return_value=test_repo):
+            context_chunks, metadata = analyzer._load_repository_context(
+                "https://github.com/test/repo", "main", "src/frontend"
+            )
+        
+        # Verify context was loaded for subfolder only
+        if len(context_chunks) > 0:
+            print(f"  ✓ Loaded {len(context_chunks)} files from subfolder")
+        else:
+            print("  ✗ No files loaded from subfolder")
+            return False
+        
+        # Check that only frontend files are included
+        file_paths = [chunk['path'] for chunk in context_chunks]
+        frontend_files = [path for path in file_paths if 'frontend' in path]
+        backend_files = [path for path in file_paths if 'backend' in path]
+        
+        if len(frontend_files) > 0 and len(backend_files) == 0:
+            print(f"  ✓ Only frontend files loaded: {frontend_files}")
+        else:
+            print(f"  ✗ Backend files found in frontend analysis: {backend_files}")
+            return False
+        
+        # Verify metadata includes subfolder info
+        if metadata.subfolder == "src/frontend":
+            print("  ✓ Metadata includes correct subfolder information")
+        else:
+            print(f"  ✗ Metadata subfolder mismatch: expected 'src/frontend', got '{metadata.subfolder}'")
+            return False
+        
+        # Check that subfolder README is included
+        if any('README.md' in path for path in file_paths):
+            print("  ✓ Subfolder README.md found and prioritized")
+        else:
+            print("  ✗ Subfolder README.md not found")
+        
+        # Test invalid subfolder
+        try:
+            with patch.object(analyzer, '_clone_repo_to_tmp', return_value=test_repo):
+                context_chunks, metadata = analyzer._load_repository_context(
+                    "https://github.com/test/repo", "main", "nonexistent/folder"
+                )
+            print("  ✗ Should have failed for nonexistent subfolder")
+            return False
+        except ValueError as e:
+            if "does not exist" in str(e):
+                print("  ✓ Properly handled nonexistent subfolder")
+            else:
+                print(f"  ✗ Unexpected error for nonexistent subfolder: {e}")
+                return False
+        
+        return True
+        
+    finally:
+        shutil.rmtree(test_repo, ignore_errors=True)
+
 
 def test_prompt_generation():
     """Test OpenAI prompt generation."""
     print("🧪 Testing prompt generation...")
     
-    analyzer = RepositoryAnalyzer()
+    analyzer = RepositoryAnalyzer(show_progress=False)
     
     # Sample context and metadata
     context_chunks = [
@@ -268,7 +525,7 @@ def test_response_parsing():
     """Test OpenAI response parsing."""
     print("🧪 Testing response parsing...")
     
-    analyzer = RepositoryAnalyzer()
+    analyzer = RepositoryAnalyzer(show_progress=False)
     
     metadata = RepositoryMetadata(
         repo_url="https://github.com/test/repo",
@@ -319,12 +576,16 @@ Here is the analysis:
 
 def run_all_tests():
     """Run all tests."""
-    print("🚀 Running Enhanced GitHub Analyzer Tests\n")
+    print("🚀 Running Enhanced GitHub Analyzer Tests (Including Subfolder Support)\n")
     
     tests = [
         ("File Prioritization", test_file_prioritization),
-        ("Database Operations", test_database_operations), 
+        ("Subfolder File Prioritization", test_subfolder_prioritization),
+        ("Database Operations", test_database_operations),
+        ("Subfolder Hash Generation", test_subfolder_hash_generation),
+        ("Subfolder Database Operations", test_subfolder_database_operations),
         ("Repository Loading", test_repository_loading),
+        ("Subfolder Repository Loading", test_subfolder_repository_loading),
         ("Prompt Generation", test_prompt_generation),
         ("Response Parsing", test_response_parsing),
     ]
@@ -351,7 +612,7 @@ def run_all_tests():
     print('='*60)
     
     if passed == total:
-        print("🎉 All tests passed! The enhanced analyzer is working correctly.")
+        print("🎉 All tests passed! The enhanced analyzer with subfolder support is working correctly.")
         return True
     else:
         print(f"⚠️  {total - passed} test(s) failed. Please review the implementation.")

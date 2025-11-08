@@ -6,6 +6,7 @@ A comprehensive GitHub repository analysis tool with OpenAI integration, intelli
 
 ### 🚀 Enhanced Repository Processing
 - **Intelligent File Prioritization**: Automatically prioritizes documentation, configuration, and core source files
+- **Subfolder Analysis**: Analyze specific parts of large repositories focusing on particular modules or components
 - **Efficient Content Filtering**: Skips binary files, build artifacts, and noise while preserving important content
 - **Memory Optimization**: Processes large repositories efficiently with configurable limits
 
@@ -62,6 +63,18 @@ python cli_analyzer.py analyze https://github.com/user/repo \
     --max-chars 8000 \
     --model gpt-4 \
     --output detailed_analysis.json
+
+# Analyze a specific subfolder
+python cli_analyzer.py analyze https://github.com/user/repo \
+    --subfolder src/frontend \
+    --output frontend_analysis.json
+
+# Analyze backend subfolder with custom settings
+python cli_analyzer.py analyze https://github.com/user/repo \
+    --subfolder src/backend \
+    --ref develop \
+    --max-files 15 \
+    --output backend_analysis.json
 ```
 
 #### View Analysis History
@@ -77,6 +90,11 @@ python cli_analyzer.py history https://github.com/user/repo
 ```bash
 python cli_analyzer.py export https://github.com/user/repo \
     --output analysis_export.json
+
+# Export subfolder analysis
+python cli_analyzer.py export https://github.com/user/repo \
+    --subfolder src/frontend \
+    --output frontend_export.json
 ```
 
 ### Programmatic Usage
@@ -91,22 +109,106 @@ analyzer = RepositoryAnalyzer(
     model="gpt-4o-mini"
 )
 
-# Analyze repository
+# Analyze entire repository
 result = analyzer.analyze_repository(
-    "https://github.com/user/repository", 
+    "https://github.com/user/repository",
     ref="main"
+)
+
+# Analyze specific subfolder
+frontend_result = analyzer.analyze_repository(
+    "https://github.com/user/repository",
+    ref="main",
+    subfolder="src/frontend"
 )
 
 # Access structured results
 print(f"Summary: {result.summary}")
 print(f"Tech Stack: {result.tech_stack}")
-print(f"Complexity: {result.complexity_score}/10")
+# Note: Complexity score display is disabled in CLI output
+# print(f"Complexity: {result.complexity_score}/10")
+
+# Compare subfolder analysis
+print(f"Frontend Summary: {frontend_result.summary}")
+print(f"Frontend Tech Stack: {frontend_result.tech_stack}")
+# Note: Complexity scores are still available programmatically if needed
+# print(f"Frontend Complexity: {frontend_result.complexity_score}/10")
 
 # Export to JSON
 export_data = analyzer.export_analysis(
     "https://github.com/user/repository"
 )
+
+# Export subfolder analysis
+subfolder_export = analyzer.export_analysis(
+    "https://github.com/user/repository",
+    subfolder="src/frontend"
+)
 ```
+
+## Subfolder Analysis
+
+### Overview
+
+The enhanced analyzer now supports analyzing specific subfolders within a repository, enabling focused analysis of:
+
+- **Frontend/Backend Components**: Analyze `src/frontend` or `src/backend` separately
+- **Microservices**: Focus on individual service directories in microservice architectures
+- **Feature Modules**: Examine specific feature implementations
+- **Library Components**: Analyze individual packages or modules
+
+### Benefits
+
+- **Targeted Insights**: Get specific analysis for the code you're working on
+- **Reduced Noise**: Focus on relevant files without being overwhelmed by the entire codebase
+- **Comparative Analysis**: Compare different parts of the same repository
+- **Performance**: Faster analysis with fewer files to process
+
+### Usage Examples
+
+#### CLI Examples
+```bash
+# Analyze frontend components
+python cli_analyzer.py analyze https://github.com/company/app --subfolder src/frontend
+
+# Analyze specific microservice
+python cli_analyzer.py analyze https://github.com/company/services --subfolder services/user-service
+
+# Analyze documentation folder
+python cli_analyzer.py analyze https://github.com/company/project --subfolder docs
+
+# Compare different modules
+python cli_analyzer.py analyze https://github.com/company/app --subfolder src/auth --output auth_analysis.json
+python cli_analyzer.py analyze https://github.com/company/app --subfolder src/payment --output payment_analysis.json
+```
+
+#### Programmatic Examples
+```python
+# Analyze multiple subfolders for comparison
+analyzer = RepositoryAnalyzer()
+
+# Analyze different components
+frontend = analyzer.analyze_repository(repo_url, subfolder="src/frontend")
+backend = analyzer.analyze_repository(repo_url, subfolder="src/backend")
+mobile = analyzer.analyze_repository(repo_url, subfolder="mobile")
+
+# Compare complexity scores
+print(f"Frontend Complexity: {frontend.complexity_score}/10")
+print(f"Backend Complexity: {backend.complexity_score}/10")
+print(f"Mobile Complexity: {mobile.complexity_score}/10")
+
+# Compare tech stacks
+print(f"Frontend Tech: {frontend.tech_stack}")
+print(f"Backend Tech: {backend.tech_stack}")
+```
+
+### How It Works
+
+1. **Path Validation**: Ensures the specified subfolder exists in the repository
+2. **Scope Limitation**: Only analyzes files within the specified subfolder
+3. **Priority Adjustment**: Adjusts file priority based on subfolder depth
+4. **Separate Caching**: Each subfolder analysis is cached independently
+5. **Contextual Prompts**: Analysis prompts are tailored for subfolder scope
 
 ## Architecture
 
@@ -226,7 +328,7 @@ Tests cover:
 ```python
 repos = [
     "https://github.com/user/repo1",
-    "https://github.com/user/repo2", 
+    "https://github.com/user/repo2",
     "https://github.com/user/repo3"
 ]
 
@@ -238,6 +340,34 @@ for repo_url in repos:
         print(f"✓ {repo_url}: {result.complexity_score}/10")
     except Exception as e:
         print(f"✗ {repo_url}: {e}")
+```
+
+### Modular Analysis Workflow
+```python
+# Analyze a monorepo by components
+repo_url = "https://github.com/company/monorepo"
+subfolders = ["services/auth", "services/payment", "services/notification", "frontend", "shared"]
+
+analyzer = RepositoryAnalyzer()
+results = {}
+
+for subfolder in subfolders:
+    try:
+        result = analyzer.analyze_repository(repo_url, subfolder=subfolder)
+        results[subfolder] = {
+            'complexity': result.complexity_score,
+            'tech_stack': result.tech_stack,
+            'recommendations': result.recommendations
+        }
+        print(f"✓ {subfolder}: Complexity {result.complexity_score}/10")
+    except Exception as e:
+        print(f"✗ {subfolder}: {e}")
+
+# Generate comparative report
+print("\n📊 MONOREPO ANALYSIS SUMMARY")
+print("="*50)
+for folder, data in results.items():
+    print(f"{folder:20} | Complexity: {data['complexity']:2}/10 | Stack: {', '.join(data['tech_stack'][:3])}")
 ```
 
 ### Custom Analysis Pipeline
@@ -267,15 +397,30 @@ with open("complex_repo_analysis.json", "w") as f:
 
 ### Integration with CI/CD
 ```python
-def analyze_pr_repository(repo_url, branch):
+def analyze_pr_repository(repo_url, branch, changed_files=None):
     """Analyze repository for pull request review."""
     analyzer = RepositoryAnalyzer()
     
-    result = analyzer.analyze_repository(repo_url, ref=branch)
+    # If we have changed files, try to analyze the most relevant subfolder
+    subfolder = None
+    if changed_files:
+        # Find common subfolder from changed files
+        common_paths = set()
+        for file in changed_files:
+            if '/' in file:
+                common_paths.add(file.split('/')[0])
+        
+        # If most changes are in one area, analyze that subfolder
+        if len(common_paths) == 1:
+            subfolder = list(common_paths)[0]
+    
+    result = analyzer.analyze_repository(repo_url, ref=branch, subfolder=subfolder)
+    
+    scope = f" (focused on {subfolder})" if subfolder else ""
     
     # Generate PR comment
     comment = f"""
-## 🤖 AI Repository Analysis
+## 🤖 AI Repository Analysis{scope}
 
 **Summary**: {result.summary}
 
@@ -289,6 +434,23 @@ def analyze_pr_repository(repo_url, branch):
     """
     
     return comment
+
+def analyze_microservice_changes(repo_url, branch, service_name):
+    """Analyze specific microservice changes."""
+    analyzer = RepositoryAnalyzer()
+    
+    result = analyzer.analyze_repository(
+        repo_url,
+        ref=branch,
+        subfolder=f"services/{service_name}"
+    )
+    
+    return {
+        'service': service_name,
+        'complexity': result.complexity_score,
+        'summary': result.summary,
+        'recommendations': result.recommendations
+    }
 ```
 
 ## Contributing
