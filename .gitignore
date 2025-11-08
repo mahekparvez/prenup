@@ -3,3 +3,5 @@ test_output.txt
 testoutput.txt
 venv/
 .venv/
+tutor-prototype
+AgentTest.py
