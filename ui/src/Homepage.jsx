@@ -1,10 +1,23 @@
-import React from "react";
+import React, {useState} from "react";
 import "./homepage.css";
 import MainLayout from "./layout";
 
 function Homepage() {
+const streak = 5;
+const [desired, setDesired] = useState([]);
+const [newDesired, setNewDesired]= useState('');
 
-const streak =5;
+const addDesired = (e) => {
+  if (newDesired.trim() !== '') {
+    setDesired([...desired, newDesired]);
+    setNewDesired('');
+  }
+  e.preventDefault();
+};
+
+const removeDesired = (index) => {
+  setDesired(desired.filter((_, i) => i !== index));
+};
 
   return (
     <MainLayout>
@@ -16,21 +29,21 @@ const streak =5;
       <h3 className="homepage-visionboard-title"> Your Personal Vision Board </h3>
 
       <div className="homepage-visionboard">
-
         <div className="vision-item">
           <h2>Desired Roles</h2>
-          <div className="item-element"> 
-            <div className="item-element-name">
-              <p>Fullstack Developer</p>
-            </div>
+            <div className="item-element">
+              <div className="item-element-name">
+                <p>Fullstack Developer</p>
+              </div>
             <progress value="20" max="100"></progress> 20%
           </div>
           <div className="item-element"> 
             <div className="item-element-name">
               <p>Data Scientist</p>
             </div>
-            <progress value="20" max="100"></progress> 20%
+            <progress value="40" max="100"></progress> 40%
           </div>
+
         </div>
 
         <div className="vision-item">
@@ -39,14 +52,14 @@ const streak =5;
             <div className="item-element-name">
               <p>Mood Tracking App</p>
             </div>
-            <progress value="20" max="100"></progress> 20%
+            <progress value="70" max="100"></progress> 70%
           </div>
           
           <div className="item-element"> 
             <div className="item-element-name">
               <p>Webpage for Company</p>
             </div>
-            <progress value="20" max="100"></progress> 20%
+            <progress value="36" max="100"></progress> 36%
           </div>
           
           <div className="item-element"> 
@@ -64,14 +77,14 @@ const streak =5;
             <div className="item-element-name">
               <p>Python</p>
             </div>
-            <progress value="20" max="100"></progress> 20%
+            <progress value="88" max="100"></progress> 88%
             </div>
           
           <div className="item-element"> 
             <div className="item-element-name">
               <p>SQL</p>
             </div>
-            <progress value="20" max="100"></progress> 20%
+            <progress value="71" max="100"></progress> 71%
           </div>
           
           <div className="item-element"> 
@@ -87,7 +100,7 @@ const streak =5;
       
       <div className="homepage-streaks">
         <h3 className="streaks-title"> Learning Streaks: </h3>
-        <div className="streak-count"> {streak} days 🔥</div>
+        <p className="streak-count"> {streak} days 🔥</p>
       </div>
 
     </div>

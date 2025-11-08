@@ -5,10 +5,10 @@ function NavMenu() {
   return (
     <ul className="nav-menu">
       <NavMenuItem to="/" label="Home" />
-      <NavMenuItem to="/settings" label="Lesson" />
-      <NavMenuItem to="/about" label="About" />
-        <NavMenuItem to="/Tutor" label="AI Tutor"/>
-      
+      <NavMenuItem to="/progress" label="Progress" />
+      <NavMenuItem to="/AIChatBot" label="AI Tutor"/>
+      <NavMenuItem to="/Settings" label="Settings" />
+      <NavMenuItem to="/Profile" label="Profile" />
     </ul>
   );
 }
